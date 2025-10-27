@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from 'dotenv';
-import { ethers } from "ethers";
+import { ethers, JsonRpcApiProvider } from "ethers";
 import { authMiddleware } from "./middleware.js";
 import { DocumentStoreFactory } from "@tradetrust-tt/document-store";
 import { v5Contracts, v5ContractAddress, v5Utils } from "@trustvc/trustvc";
@@ -46,6 +46,7 @@ app.post('/deploy-document-store', async (req, res) => {
     }
 })
 
+/*
 app.post('/deploy-token-registry', async (req, res) => {
     try {
         const { name, symbol } = req.body;
@@ -110,6 +111,30 @@ app.post('/deploy-token-registry', async (req, res) => {
         res.status(500).json({ error: error.message })
     }
 });
+*/
+
+app.post('/deploy-token-registry', async (req, res) => {
+    const {name, symbol} = req.body;
+
+    const wallet = getWallet();
+    const chainId = await wallet.provider?.getNetwork();
+    const walletAddress = await wallet.getAddress();
+
+    const tDocDeployerAddress = v5ContractAddress.Deployer[Number(chainId)]
+    const connectedDeployer = new ethers.Contract(tDocDeployerAddress, v5Contracts.TDocDeployer__factory.abi, wallet);
+
+    const initparam = v5Utils.encodeInitParams({
+        name,
+        symbol,
+        deployer: walletAddress,
+    })
+    
+    const tx = await connectedDeployer.deploy(initparam);
+
+    res.json({
+        transaction: tx
+    })
+})
 
 const PORT = process.env.PORT || 3000;
 
